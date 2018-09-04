@@ -1,0 +1,11 @@
+{
+    "username": "校园网帐号",
+    "password": "校园网密码",
+    "rk_username": "若快API帐号",
+    "rk_password": "若快API密码",
+    "soft_id": "软件id",
+    "soft_key": "软件key",
+    "type": 2,    //选择课程的方法  1-按部门  2-按类型
+    "option": 1,    //选择课程的类型（请自行查看）
+    "courseID": 103458    //选择课程的班号
+}
