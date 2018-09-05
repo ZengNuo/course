@@ -7,6 +7,7 @@ from PIL import Image, ImageEnhance, ImageDraw
 import json
 import re
 from time import sleep
+import datetime
 
 
 class RClient(object):
@@ -102,7 +103,16 @@ driver = webdriver.Chrome()
 
 conf = json.load(open('./self_conf.json'))
 
+# 连接若快API
+username = conf['rk_username']
+password = conf['rk_password']
+soft_id = conf['soft_id']
+soft_key = conf['soft_key']
+rc = RClient(username, password, soft_id, soft_key)
+
+# 登录url
 login_url = 'http://credit2.stu.edu.cn/portal/stulogin.aspx'
+# 选课url
 beixuanke_url = 'http://credit2.stu.edu.cn/Elective/beixuankecheng.aspx'
 
 # 登录帐号
@@ -170,49 +180,62 @@ while len(currents) == 1:
 # 切换至弹窗
 driver.switch_to.window(currents[1])
 
-# 判断是否有验证码
-try:
-    msg = driver.find_element_by_xpath('//*[@id="ctl00_cpContent_lblMsg"]')
-    print(msg.text)
-    driver.find_element_by_xpath('//*[@id="ctl00_cpContent_btnOK"]').click()
-except selenium.common.exceptions.NoSuchElementException:
-    # 截图或验证码图片保存地址
-    raw_screenImg = "./image/raw_screenImg.png"
-    code_Img = './image/code_Img.png'
+status = True
 
-    # 浏览器页面截屏
-    driver.get_screenshot_as_file(raw_screenImg)
+while status:
+    # 判断是否有验证码
+    try:
+        msg = driver.find_element_by_xpath('//*[@id="ctl00_cpContent_lblMsg"]')
+        print(msg.text)
+        status = False
+        driver.find_element_by_xpath('//*[@id="ctl00_cpContent_btnOK"]').click()
+    except selenium.common.exceptions.NoSuchElementException:
 
-    # 定位验证码位置及大小
-    location = driver.find_element_by_xpath('//*[@id="aspnetForm"]/div[3]/div[1]/div/div[2]/center/div/img').location
-    size = driver.find_element_by_xpath('//*[@id="aspnetForm"]/div[3]/div[1]/div/div[2]/center/div/img').size
-    left = location['x'] + 25
-    top = location['y'] + 30
-    right = location['x'] + size['width'] + 80
-    bottom = location['y'] + size['height'] + 40
+        # 截图或验证码图片保存地址
+        raw_screenImg = "./image/raw_screenImg.png"
+        code_Img = './image/code_Img.png'
 
-    # 从文件读取截图，截取验证码位置再次保存
-    img = Image.open(raw_screenImg).crop((left, top, right, bottom))
-    img = ImageEnhance.Contrast(img)
-    img = img.enhance(2.0)
-    img.save(code_Img)
+        # 浏览器页面截屏
+        driver.get_screenshot_as_file(raw_screenImg)
 
-    # 对图片进行降噪处理
-    img2 = Image.open("./image/code_Img.png")
-    img2 = img2.convert("L")
-    clear_noise(img2, 50, 4, 4)
-    img2.save("./image/result.png")
+        # 定位验证码位置及大小
+        location = driver.find_element_by_xpath(
+            '//*[@id="aspnetForm"]/div[3]/div[1]/div/div[2]/center/div/img').location
+        size = driver.find_element_by_xpath('//*[@id="aspnetForm"]/div[3]/div[1]/div/div[2]/center/div/img').size
+        left = location['x']
+        top = location['y']
+        right = location['x'] + size['width']
+        bottom = location['y'] + size['height']
 
-    # 连接若快api进行验证码识别
-    username = conf['rk_username']
-    password = conf['rk_password']
-    soft_id = conf['soft_id']
-    soft_key = conf['soft_key']
-    rc = RClient(username, password, soft_id, soft_key)
-    im = open('./image/result.png', 'rb').read()
-    json = rc.rk_create(im, 3050)
-    result = json["Result"]
+        # 从文件读取截图，截取验证码位置再次保存
+        img = Image.open(raw_screenImg).crop((left, top, right, bottom))
+        img = ImageEnhance.Contrast(img)
+        img = img.enhance(2.0)
+        img.save(code_Img)
 
-    # 发送验证码
-    driver.find_element_by_xpath('//*[@id="ctl00_cpContent_txtCapcha"]').send_keys(result)
-    driver.find_element_by_xpath('//*[@id="ctl00_cpContent_btnContinue"]').click()
+
+
+        # 对图片进行降噪处理
+        img2 = Image.open("./image/code_Img.png")
+        img2 = img2.convert("L")
+        clear_noise(img2, 50, 4, 4)
+        img2.save("./image/result.png")
+
+
+
+        starttime = datetime.datetime.now()
+
+
+        # 进行验证码识别
+        im = open('./image/result.png', 'rb').read()
+        json = rc.rk_create(im, 3050)
+        result = json["Result"]
+
+
+        endtime = datetime.datetime.now()
+        print(endtime - starttime)
+
+        # 发送验证码
+        driver.find_element_by_xpath('//*[@id="ctl00_cpContent_txtCapcha"]').clear()
+        driver.find_element_by_xpath('//*[@id="ctl00_cpContent_txtCapcha"]').send_keys(result)
+        driver.find_element_by_xpath('//*[@id="ctl00_cpContent_btnContinue"]').click()
